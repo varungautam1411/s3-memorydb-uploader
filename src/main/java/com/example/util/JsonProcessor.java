@@ -2,6 +2,7 @@ package com.example.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.example.model.Movie;
@@ -23,7 +24,19 @@ public class JsonProcessor {
             ObjectNode movieData = objectMapper.createObjectNode();
             movieData.put("title", movie.getTitle());
             movieData.put("yearOfRelease", movie.getYearOfRelease());
-            movieData.set("watchedBy", objectMapper.valueToTree(movie.getWatchedBy()));
+            
+            // Process watchedBy list
+            ArrayNode watchedByNode = movieData.putArray("watchedBy");
+            if (movie.getWatchedBy() != null) {
+                for (Movie.WatchedBy watchedBy : movie.getWatchedBy()) {
+                    ObjectNode watchedByObject = objectMapper.createObjectNode();
+                    watchedByObject.put("customer-id", watchedBy.getCustomerId());
+                    watchedByObject.put("movie-id", watchedBy.getMovieId());
+                    watchedByObject.put("rating", watchedBy.getRating());
+                    watchedByObject.put("date", watchedBy.getDate());
+                    watchedByNode.add(watchedByObject);
+                }
+            }
 
             return new MovieData(
                 movie.getMovieId(),
