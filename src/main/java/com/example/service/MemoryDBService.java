@@ -61,16 +61,7 @@ public class MemoryDBService {
         }
     }
 
-    public boolean testConnection() {
-        try {
-            String response = jedisCluster.ping();
-            logger.info("MemoryDB connection test: {}", response);
-            return "PONG".equalsIgnoreCase(response);
-        } catch (Exception e) {
-            logger.error("MemoryDB connection test failed", e);
-            return false;
-        }
-    }
+    
 
     public void close() {
         if (jedisCluster != null) {
