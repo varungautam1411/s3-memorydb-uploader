@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.JedisCluster;
 import redis.clients.jedis.JedisPoolConfig;
+import redis.clients.jedis.HostAndPort;
+import redis.clients.jedis.ConnectionPoolConfig;
 
 import javax.net.ssl.SSLSocketFactory;
 import java.util.HashSet;
@@ -23,27 +25,27 @@ public class MemoryDBService {
     }
 
     private JedisCluster createClusterConnection(AppConfig config) {
-        Set<String> nodes = new HashSet<>();
-        nodes.add(config.getMemoryDbEndpoint() + ":" + config.getMemoryDbPort());
+        try {
+            Set<HostAndPort> nodes = new HashSet<>();
+            nodes.add(new HostAndPort(config.getMemoryDbEndpoint(), config.getMemoryDbPort()));
 
-        JedisPoolConfig poolConfig = new JedisPoolConfig();
-        poolConfig.setMaxTotal(32);
-        poolConfig.setMaxIdle(16);
+            ConnectionPoolConfig poolConfig = new ConnectionPoolConfig();
+            poolConfig.setMaxTotal(32);
+            poolConfig.setMaxIdle(16);
 
-        return new JedisCluster(
-                nodes,
-                2000, // connection timeout
-                2000, // socket timeout
-                5,    // max attempts
-                config.getMemoryDbAuthToken(),
-                "default",
-                poolConfig,
-                true,
-                null,
-                null,
-                null,
-                SSLSocketFactory.getDefault()
-        );
+            // Using the correct constructor for JedisCluster
+            return new JedisCluster(
+                nodes,                          // Set of nodes
+                2000,                          // Connection timeout
+                2000,                          // Socket timeout
+                5,                             // Max attempts
+                config.getMemoryDbAuthToken(), // Auth token
+                poolConfig                     // Pool config
+            );
+        } catch (Exception e) {
+            logger.error("Error creating MemoryDB connection", e);
+            throw new RuntimeException("Failed to create MemoryDB connection", e);
+        }
     }
 
     public void processAndStoreJson(String jsonContent) {
@@ -62,5 +64,14 @@ public class MemoryDBService {
             throw new RuntimeException("Failed to process JSON", e);
         }
     }
-}
 
+    public void close() {
+        if (jedisCluster != null) {
+            try {
+                jedisCluster.close();
+            } catch (Exception e) {
+                logger.error("Error closing JedisCluster", e);
+            }
+        }
+    }
+}
