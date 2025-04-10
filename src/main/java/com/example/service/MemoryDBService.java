@@ -5,13 +5,11 @@ import com.example.util.JsonProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.JedisCluster;
-import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.ConnectionPoolConfig;
+import com.example.util.JsonProcessor.MovieData;
 
-import javax.net.ssl.SSLSocketFactory;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 public class MemoryDBService {
@@ -27,41 +25,50 @@ public class MemoryDBService {
     private JedisCluster createClusterConnection(AppConfig config) {
         try {
             Set<HostAndPort> nodes = new HashSet<>();
-            nodes.add(new HostAndPort(config.getMemoryDbEndpoint(), config.getMemoryDbPort()));
+            nodes.add(new HostAndPort(
+                config.getMemoryDbEndpoint(),
+                config.getMemoryDbPort()
+            ));
 
             ConnectionPoolConfig poolConfig = new ConnectionPoolConfig();
             poolConfig.setMaxTotal(32);
             poolConfig.setMaxIdle(16);
 
-            // Using the correct constructor for JedisCluster
-            return new JedisCluster(
-                nodes,                          // Set of nodes
-                2000,                          // Connection timeout
-                2000,                          // Socket timeout
-                5,                             // Max attempts
-                config.getMemoryDbAuthToken(), // Auth token
-                poolConfig                     // Pool config
-            );
+            return new JedisCluster(nodes, 2000, 2000, 5, poolConfig);
         } catch (Exception e) {
-            logger.error("Error creating MemoryDB connection", e);
+            logger.error("Error creating MemoryDB connection: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to create MemoryDB connection", e);
         }
     }
 
     public void processAndStoreJson(String jsonContent) {
         try {
-            Map<String, String> keyValuePairs = jsonProcessor.extractKeyValuePairs(jsonContent);
-            keyValuePairs.forEach((key, value) -> {
-                try {
-                    jedisCluster.set(key, value);
-                    logger.debug("Stored key: {}", key);
-                } catch (Exception e) {
-                    logger.error("Error storing key-value pair: {}", key, e);
-                }
-            });
+            MovieData movieData = jsonProcessor.processJsonContent(jsonContent);
+            jedisCluster.set(movieData.getKey(), movieData.getValue());
+            logger.info("Stored movie data for ID: {}", movieData.getKey());
         } catch (Exception e) {
-            logger.error("Error processing JSON content", e);
-            throw new RuntimeException("Failed to process JSON", e);
+            logger.error("Error processing and storing JSON content: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to process and store JSON", e);
+        }
+    }
+
+    public String getMovie(String movieId) {
+        try {
+            return jedisCluster.get(movieId);
+        } catch (Exception e) {
+            logger.error("Error retrieving movie {}: {}", movieId, e.getMessage(), e);
+            throw new RuntimeException("Failed to retrieve movie", e);
+        }
+    }
+
+    public boolean testConnection() {
+        try {
+            String response = jedisCluster.ping();
+            logger.info("MemoryDB connection test: {}", response);
+            return "PONG".equalsIgnoreCase(response);
+        } catch (Exception e) {
+            logger.error("MemoryDB connection test failed", e);
+            return false;
         }
     }
 
@@ -75,3 +82,5 @@ public class MemoryDBService {
         }
     }
 }
+
+    
