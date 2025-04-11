@@ -44,7 +44,7 @@ public class MemoryDBService {
     public void processAndStoreJson(String jsonContent) {
         try {
             MovieData movieData = jsonProcessor.processJsonContent(jsonContent);
-            jedisCluster.set(movieData.getKey(), movieData.getValue());
+            jedisCluster.set("movie:"+movieData.getKey(), movieData.getValue());
             logger.info("Stored movie data for ID: {}", movieData.getKey());
         } catch (Exception e) {
             logger.error("Error processing and storing JSON content: {}", e.getMessage(), e);
@@ -54,7 +54,7 @@ public class MemoryDBService {
 
     public String getMovie(String movieId) {
         try {
-            return jedisCluster.get(movieId);
+            return jedisCluster.get("movie:"+movieId);
         } catch (Exception e) {
             logger.error("Error retrieving movie {}: {}", movieId, e.getMessage(), e);
             throw new RuntimeException("Failed to retrieve movie", e);
